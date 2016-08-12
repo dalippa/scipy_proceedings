@@ -103,8 +103,8 @@ class Translator(LaTeXTranslator):
                 institution_authors.setdefault(inst, []).append(auth)
 
         def footmark(n):
-            """Insert footmark #n.  Footmark 1 is reserved for
-            the corresponding author.\
+            """Insert footmark #n. len(self.author_names) footmarks reserved for
+            the corresponding authors.\
             """
             return ('\\setcounter{footnotecounter}{%d}' % n,
                     '\\fnsymbol{footnotecounter}')
@@ -112,7 +112,7 @@ class Translator(LaTeXTranslator):
         # Build one footmark for each institution
         institute_footmark = {}
         for i, inst in enumerate(institution_authors):
-            institute_footmark[inst] = footmark(i + 2)
+            institute_footmark[inst] = footmark(i + len(self.author_names) + 2)
 
         footmark_template = r'\thanks{%(footmark)s %(instutions)}'
         corresponding_auth_template = r'''%%
@@ -121,25 +121,20 @@ class Translator(LaTeXTranslator):
 
         title = self.paper_title
         authors = []
-        institutions_mentioned = set()
+        institutions_mentioned = list()
         for n, auth in enumerate(self.author_names):
-            # Corresponding author
-            if n == 0:
-                authors += [r'%(author)s$^{%(footmark)s}$' % \
+            # Corresponding authors
+            authors += [r'%(author)s$^{%(footmark)s}$' % \
                             {'author': auth,
-                             'footmark': ''.join(footmark(1)) + ''.join([''.join(institute_footmark[inst]) for inst in self.author_institution_map[auth]])}]
+                             'footmark': ''.join(footmark(n+1)) + ''.join(['~'.join(institute_footmark[inst]) for inst in self.author_institution_map[auth]])}]
 
-                fm_counter, fm = footmark(1)
-                authors[-1] += corresponding_auth_template % \
-                               {'footmark_counter': fm_counter,
-                                'footmark': fm,
-                                'email': self.author_emails[0]}
+            fm_counter, fm = footmark(n+1)
+            authors[n] += corresponding_auth_template % \
+                {'footmark_counter': fm_counter,
+                 'footmark': fm,
+                 'email': self.author_emails[n]}
 
-            else:
-                authors += [r'%(author)s$^{%(footmark)s}$' %
-                            {'author': auth,
-                             'footmark': ''.join([''.join(institute_footmark[inst]) for inst in self.author_institution_map[auth]])}]
-
+        for auth in self.author_names:
             for inst in self.author_institution_map[auth]:
                 if not inst in institutions_mentioned:
                     fm_counter, fm = institute_footmark[inst]
@@ -148,8 +143,7 @@ class Translator(LaTeXTranslator):
                                  'footmark': fm,
                                  'institution': inst}
 
-                institutions_mentioned.add(inst)
-
+                institutions_mentioned.append(inst)
 
         ## Add copyright
 
